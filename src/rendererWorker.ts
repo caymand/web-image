@@ -9,7 +9,7 @@ interface RenderState {
   canvasCtx?: OffscreenCanvasRenderingContext2D;
 }
 const FRAME_BUDGET = 1000 / 30;
-const MAX_FRAMES_IN_FLIGHT = 2;
+// const MAX_FRAMES_IN_FLIGHT = 2;
 const chunkSize = 16 << 10; // 16KB chunk sizes
 const videoDecoderInit: VideoDecoderInit = {
   output: handleVideoFrame,
@@ -51,7 +51,7 @@ const mp4box = MP4Box.createFile();
 mp4box.onSamples = onVideoSample
 mp4box.onReady = onMoovParsed
 
-function onVideoSample(id: number, user: unknown, samples: MP4Box.Sample[]) {
+function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   const sample = samples[0];
   if (sample.data === undefined) {
     return;
@@ -86,21 +86,6 @@ function readChunk(file: File, chunkSize: number, offset: number) {
   const chunk = chunkBlob.arrayBuffer();
 
   return chunk
-}
-
-function getNextChunk(file: File, chunkSize: number, offset: number) {
-  return new Promise<ArrayBuffer>((resolve) => {
-    if (renderState.videoDecoder.decodeQueueSize < MAX_FRAMES_IN_FLIGHT) {
-      resolve(readChunk(file, chunkSize, offset));
-    }
-    else {
-      renderState.videoDecoder.ondequeue = (_e) => {
-        if (renderState.videoDecoder.decodeQueueSize < MAX_FRAMES_IN_FLIGHT) {
-          resolve(readChunk(file, chunkSize, offset))
-        }
-      };
-    }
-  });
 }
 
 async function readFile(file: File) {

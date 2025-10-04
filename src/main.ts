@@ -1,4 +1,3 @@
-import * as MP4BOX from "mp4box"
 import type { CanvasMsg } from "./workerMsg";
 
 const canvas: HTMLCanvasElement = document.getElementById("canvas") as HTMLCanvasElement;
@@ -13,7 +12,7 @@ renderWorker.onmessage = (ev) => {
 };
 
 const inputFile = document.getElementById("input")
-const getFile = new Promise<File>((resolve, reject) => {
+const getFile = new Promise<File>((resolve) => {
   function onChooseFile(e: Event) {
     const videoFiles = (e.target as HTMLInputElement).files;
     if (!videoFiles) {
