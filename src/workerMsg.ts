@@ -8,11 +8,9 @@ export interface VideoFileMsg {
   data: File;
 }
 
-export interface StartMsg {
-  type: "Start";
-  data: {
-    framerate?: number;
-  };
+export interface ReplayMsg {
+  type: "Replay";
+  data: null;
 }
 
-export type WorkerMsg = CanvasMsg | VideoFileMsg | StartMsg;
+export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg

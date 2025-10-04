@@ -41,6 +41,9 @@ onmessage = (ev) => {
       })();
       break;
     }
+    case "Replay": {
+      doReplay();
+    }
     default:
       console.error("Unknown message:", ev.data);
   }
@@ -51,6 +54,12 @@ onmessage = (ev) => {
 const mp4box = MP4Box.createFile();
 mp4box.onSamples = onVideoSample
 mp4box.onReady = onMoovParsed
+
+function doReplay() {
+  mp4box.stop();
+  mp4box.flush();
+  postMessage("STOP");
+}
 
 function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   const sample = samples[0];

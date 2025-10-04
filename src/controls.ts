@@ -1,4 +1,4 @@
-import type { CanvasMsg } from "./workerMsg";
+import type { CanvasMsg, ReplayMsg } from "./workerMsg";
 
 export interface AppControls {
   fileInput: HTMLInputElement;
@@ -43,6 +43,8 @@ export function pushElement(node: HTMLElement) {
 }
 
 /** Now the actual UI components */
+
+
 const canvas: HTMLCanvasElement = document.getElementById("canvas") as HTMLCanvasElement;
 const offScreenCanvas = canvas.transferControlToOffscreen();
 
@@ -58,6 +60,12 @@ export function replayButton() {
   const replayButton = document.createElement('button');
   replayButton.id = 'replay';
   replayButton.textContent = 'Replay';
+
+  const msg: ReplayMsg = {type: "Replay", data: null};
+
+  replayButton.onclick = () => {
+    postMessage(msg);
+  }
 
   pushElement(replayButton);
 }
