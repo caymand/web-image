@@ -16,7 +16,7 @@ const videoDecoderInit: VideoDecoderInit = {
   error: (e) => console.log(e.message)
 }
 const renderState: RenderState = {
-  framesInFlight: new Array(MAX_FRAMES_IN_FLIGHT),
+  framesInFlight: new Array(),
   videoDecoder: new VideoDecoder(videoDecoderInit),
 }
 
@@ -64,23 +64,6 @@ function onVideoSample(id: number, user: unknown, samples: MP4Box.Sample[]) {
   })
 
   renderState.videoDecoder.decode(chunk);
-
-  // const waitForDecoder = new Promise<void>((resolve) => {
-  //   if (renderState.videoDecoder.decodeQueueSize < MAX_FRAMES_IN_FLIGHT) {
-  //     resolve();
-  //   }
-  //   else {
-  //     renderState.videoDecoder.ondequeue = (_e) => {
-  //       if (renderState.videoDecoder.decodeQueueSize < MAX_FRAMES_IN_FLIGHT) {
-  //         resolve();
-  //       }
-  //     }
-  //   }
-  // });
-
-  // waitForDecoder.then(() =>
-  //   renderState.videoDecoder.decode(chunk)
-  // );
 }
 
 function onMoovParsed(info: MP4Box.Movie) {
@@ -135,40 +118,31 @@ async function readFile(file: File) {
 }
 
 function handleVideoFrame(frame: VideoFrame) {
+  const allFramesConsumed = renderState.framesInFlight.length === 0;
   renderState.framesInFlight.push(frame)
-  setTimeout(renderLoop, 0);
+  if (allFramesConsumed) {
+    setTimeout(renderLoop, 0);
+  }
 }
 
 async function renderLoop() {
   if (renderState.framesInFlight.length < 1) {
     return;
   }
+  const now = performance.now();
+  if (renderState.lastTime === undefined) {
+    renderState.lastTime = now;
+  }
+  const diff = now - renderState.lastTime;
+  renderState.lastTime = now;
+
   const frame = renderState.framesInFlight.shift()!;
   const { width, height } = renderState.canvas!;
-  renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
-  frame.close();
 
-  setTimeout(renderLoop, 0);
+  setTimeout(() => {
+    renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
+    frame.close();
+
+    setTimeout(renderLoop, 0);
+  }, FRAME_BUDGET - diff);
 }
-
-
-
-
-// function renderFrame(frame: VideoFrame) {
-//   const { width, height } = renderState.canvas!;
-//   const now = performance.now();
-//   if (renderState.lastTime === undefined) {
-//     renderState.lastTime = now;
-//     renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
-//     frame.close();
-//   }
-//   else {
-//     const diff = now - renderState.lastTime;
-//     renderState.lastTime = now;
-//     const sleep = FRAME_BUDGET - diff;
-//     setTimeout(() => {
-//       renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
-//       frame.close();
-//     }, 33);
-//   }
-// }
