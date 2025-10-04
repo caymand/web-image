@@ -4,7 +4,7 @@ import * as MP4Box from "mp4box";
 interface RenderState {
   videoDecoder: VideoDecoder;
   framesInFlight: Array<VideoFrame>;
-  lastTime?: number;
+  frameUnderFlow: boolean;
   canvas?: OffscreenCanvas;
   canvasCtx?: OffscreenCanvasRenderingContext2D;
 }
@@ -18,6 +18,7 @@ const videoDecoderInit: VideoDecoderInit = {
 const renderState: RenderState = {
   framesInFlight: new Array(),
   videoDecoder: new VideoDecoder(videoDecoderInit),
+  frameUnderFlow: true,
 }
 
 /** Global message pipe */
@@ -102,32 +103,33 @@ async function readFile(file: File) {
   mp4box.flush();
 }
 
+/** Producer */
 function handleVideoFrame(frame: VideoFrame) {
-  const allFramesConsumed = renderState.framesInFlight.length === 0;
   renderState.framesInFlight.push(frame)
-  if (allFramesConsumed) {
+  if (renderState.frameUnderFlow) {
+    renderState.frameUnderFlow = false;
     setTimeout(renderLoop, 0);
   }
 }
 
+/** Consumer */
 async function renderLoop() {
   if (renderState.framesInFlight.length < 1) {
+    renderState.frameUnderFlow = true;
     return;
   }
-  const now = performance.now();
-  if (renderState.lastTime === undefined) {
-    renderState.lastTime = now;
-  }
-  const diff = now - renderState.lastTime;
-  renderState.lastTime = now;
 
+  const workStart = performance.now();
   const frame = renderState.framesInFlight.shift()!;
   const { width, height } = renderState.canvas!;
+  renderState.frameUnderFlow = false;
+  renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
+  frame.close();
 
-  setTimeout(() => {
-    renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
-    frame.close();
+  // Calculate how long the work took and wait for the remainder of the frame budget.
+  const workEnd = performance.now();
+  const workDuration = workEnd - workStart;
+  const nextFrameDelay = Math.max(0, FRAME_BUDGET - workDuration);
 
-    setTimeout(renderLoop, 0);
-  }, FRAME_BUDGET - diff);
+  setTimeout(renderLoop, nextFrameDelay);
 }
