@@ -129,7 +129,7 @@ async function renderLoop() {
   // Calculate how long the work took and wait for the remainder of the frame budget.
   const workEnd = performance.now();
   const workDuration = workEnd - workStart;
-  const nextFrameDelay = Math.max(0, FRAME_BUDGET - workDuration);
+  const nextFrameDelay = FRAME_BUDGET - workDuration;
 
   setTimeout(renderLoop, nextFrameDelay);
 }
