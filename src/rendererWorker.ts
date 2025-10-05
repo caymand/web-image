@@ -21,6 +21,8 @@ const renderState: RenderState = {
   frameUnderFlow: true,
 }
 
+let isReading = false;
+
 /** Global message pipe */
 onmessage = (ev) => {
   const { type, data } = ev.data as WorkerMsg
@@ -35,14 +37,14 @@ onmessage = (ev) => {
     }
     case "Video": {
       const file = data;
-      // Call readFile asynchronously so it doesn't block the event loop
-      (async () => {
-        await readFile(file);
-      })();
+      isReading = true;
+      readFile(file, 0);
       break;
     }
     case "Replay": {
+      isReading = false;
       doReplay();
+      break;
     }
     default:
       console.error("Unknown message:", ev.data);
@@ -98,18 +100,21 @@ function readChunk(file: File, chunkSize: number, offset: number) {
   return chunk
 }
 
-async function readFile(file: File) {
-  const chunks = ((file.size + chunkSize - 1) / chunkSize) >> 0
-  let offset = 0;
-  for (let i = 0; i < chunks; i++) {
-
-    // First wait for there to be resources to process more frames
-    // const chunk = await getNextChunk(file, chunkSize, offset);
-    const chunk = await readChunk(file, chunkSize, offset);
-    const buffer = MP4Box.MP4BoxBuffer.fromArrayBuffer(chunk, offset);
-    offset = mp4box.appendBuffer(buffer);
+async function readFile(file: File, offset: number) {
+  if (!isReading || offset >= file.size) {
+    if (isReading) { // If we finished reading naturally
+        mp4box.flush();
+    }
+    isReading = false;
+    return;
   }
-  mp4box.flush();
+
+  const chunk = await readChunk(file, chunkSize, offset);
+  const buffer = MP4Box.MP4BoxBuffer.fromArrayBuffer(chunk, offset);
+  const nextOffset = mp4box.appendBuffer(buffer);
+
+  // Schedule next chunk processing to avoid blocking the event loop
+  setTimeout(() => readFile(file, nextOffset), 0);
 }
 
 /** Producer */
@@ -122,7 +127,7 @@ function handleVideoFrame(frame: VideoFrame) {
 }
 
 /** Consumer */
-async function renderLoop() {
+function renderLoop() {
   if (renderState.framesInFlight.length < 1) {
     renderState.frameUnderFlow = true;
     return;
