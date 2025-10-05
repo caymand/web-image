@@ -66,17 +66,18 @@ function doReplay() {
   if (renderState.videoFile === undefined) {
     return;
   }
+  // Clear all state.
   mp4box.stop();
   mp4box.flush();
   renderState.videoDecoder.reset();
-
-  mp4box = init_mp4box();
-
   renderState.framesInFlight.splice(
     0, renderState.framesInFlight.length
   );
   const { width, height } = renderState.canvas!;
   renderState.canvasCtx?.clearRect(0, 0, width, height);
+
+  // Redo frame extraction and processing.
+  mp4box = init_mp4box();
   readFile(renderState.videoFile, 0);
 }
 
@@ -117,6 +118,10 @@ function readChunk(file: File, chunkSize: number, offset: number) {
   return chunk
 }
 
+
+/** TODO(k): Memory of each sample should be freed, if it does not
+ * do so automatically?
+ */
 async function readFile(file: File, offset: number) {
   if (offset >= file.size) {
     mp4box.flush();

@@ -56,12 +56,20 @@ renderWorker.onmessage = (ev) => {
   console.log(ev.data);
 };
 
+export function button(onclick: (e: PointerEvent) => void, text: string) {
+  const button = document.createElement('button');
+  button.textContent = text;
+  button.onclick = onclick;
+  
+  pushElement(button);
+}
+
 export function replayButton() {
   const replayButton = document.createElement('button');
   replayButton.id = 'replay';
   replayButton.textContent = 'Replay';
 
-  const msg: ReplayMsg = {type: "Replay", data: null};
+  const msg: ReplayMsg = { type: "Replay", data: null };
 
   replayButton.onclick = () => {
     renderWorker.postMessage(msg);
