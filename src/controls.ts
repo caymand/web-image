@@ -64,7 +64,7 @@ export function replayButton() {
   const msg: ReplayMsg = {type: "Replay", data: null};
 
   replayButton.onclick = () => {
-    postMessage(msg);
+    renderWorker.postMessage(msg);
   }
 
   pushElement(replayButton);

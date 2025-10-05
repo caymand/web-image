@@ -2,6 +2,8 @@ import type { WorkerMsg } from "./workerMsg";
 import * as MP4Box from "mp4box";
 
 interface RenderState {
+  videoFile?: File;
+
   videoDecoder: VideoDecoder;
   framesInFlight: Array<VideoFrame>;
   frameUnderFlow: boolean;
@@ -21,8 +23,6 @@ const renderState: RenderState = {
   frameUnderFlow: true,
 }
 
-let isReading = false;
-
 /** Global message pipe */
 onmessage = (ev) => {
   const { type, data } = ev.data as WorkerMsg
@@ -37,12 +37,11 @@ onmessage = (ev) => {
     }
     case "Video": {
       const file = data;
-      isReading = true;
+      renderState.videoFile = file;
       readFile(file, 0);
       break;
     }
     case "Replay": {
-      isReading = false;
       doReplay();
       break;
     }
@@ -53,14 +52,32 @@ onmessage = (ev) => {
 }
 
 /** MP4Box setup */
-const mp4box = MP4Box.createFile();
-mp4box.onSamples = onVideoSample
-mp4box.onReady = onMoovParsed
+function init_mp4box() {
+  let mp4box = MP4Box.createFile();
+
+  mp4box.onSamples = onVideoSample
+  mp4box.onReady = onMoovParsed
+
+  return mp4box;
+}
+let mp4box = init_mp4box();
 
 function doReplay() {
+  if (renderState.videoFile === undefined) {
+    return;
+  }
   mp4box.stop();
   mp4box.flush();
-  postMessage("STOP");
+  renderState.videoDecoder.reset();
+
+  mp4box = init_mp4box();
+
+  renderState.framesInFlight.splice(
+    0, renderState.framesInFlight.length
+  );
+  const { width, height } = renderState.canvas!;
+  renderState.canvasCtx?.clearRect(0, 0, width, height);
+  readFile(renderState.videoFile, 0);
 }
 
 function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
@@ -101,11 +118,8 @@ function readChunk(file: File, chunkSize: number, offset: number) {
 }
 
 async function readFile(file: File, offset: number) {
-  if (!isReading || offset >= file.size) {
-    if (isReading) { // If we finished reading naturally
-        mp4box.flush();
-    }
-    isReading = false;
+  if (offset >= file.size) {
+    mp4box.flush();
     return;
   }
 
@@ -127,6 +141,11 @@ function handleVideoFrame(frame: VideoFrame) {
 }
 
 /** Consumer */
+/** TODO: I don't think this exactly matches the FPS Target.
+ * It cannot be guaranteed that this loop is not interrupted
+ * by other events. Therefore, each scheduled paint
+ * might take longer than 33ms.
+ */
 function renderLoop() {
   if (renderState.framesInFlight.length < 1) {
     renderState.frameUnderFlow = true;
