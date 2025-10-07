@@ -3,15 +3,20 @@ import * as MP4Box from "mp4box";
 
 interface RenderState {
   videoFile?: File;
-
+  videoOffset: number;
+  videoSamplingStarted: boolean;
   videoDecoder: VideoDecoder;
+
   framesInFlight: Array<VideoFrame>;
   frameUnderFlow: boolean;
+
   canvas?: OffscreenCanvas;
   canvasCtx?: OffscreenCanvasRenderingContext2D;
 }
+
 const FRAME_BUDGET = 1000 / 30;
-// const MAX_FRAMES_IN_FLIGHT = 2;
+const MAX_FRAMES_IN_FLIGHT = 5;
+const MIN_FRAMES_IN_FLIGHT = 2;
 const chunkSize = 16 << 10; // 16KB chunk sizes
 const videoDecoderInit: VideoDecoderInit = {
   output: handleVideoFrame,
@@ -21,6 +26,8 @@ const renderState: RenderState = {
   framesInFlight: new Array(),
   videoDecoder: new VideoDecoder(videoDecoderInit),
   frameUnderFlow: true,
+  videoSamplingStarted: false,
+  videoOffset: 0,
 }
 
 /** Global message pipe */
@@ -86,6 +93,7 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   if (sample.data === undefined) {
     return;
   }
+  renderState.videoSamplingStarted = true;
   const chunk = new EncodedVideoChunk({
     data: sample!.data,
     type: sample.is_sync ? "key" : "delta",
@@ -131,9 +139,12 @@ async function readFile(file: File, offset: number) {
   const chunk = await readChunk(file, chunkSize, offset);
   const buffer = MP4Box.MP4BoxBuffer.fromArrayBuffer(chunk, offset);
   const nextOffset = mp4box.appendBuffer(buffer);
+  renderState.videoOffset = nextOffset;
 
   // Schedule next chunk processing to avoid blocking the event loop
-  setTimeout(() => readFile(file, nextOffset), 0);
+  if (!renderState.videoSamplingStarted) {
+    setTimeout(() => readFile(file, nextOffset), 0);
+  }
 }
 
 /** Producer */
@@ -147,12 +158,17 @@ function handleVideoFrame(frame: VideoFrame) {
 
 /** Consumer */
 /** TODO: I don't think this exactly matches the FPS Target.
- * It cannot be guaranteed that this loop is not interrupted
- * by other events. Therefore, each scheduled paint
- * might take longer than 33ms.
  */
 function renderLoop() {
-  if (renderState.framesInFlight.length < 1) {
+  const undhandledFrames = renderState.framesInFlight.length;
+  if (undhandledFrames < MIN_FRAMES_IN_FLIGHT) {
+    renderState.videoSamplingStarted = false;
+    setTimeout(() =>
+      readFile(renderState.videoFile!, renderState.videoOffset),
+      0
+    );
+  }
+  if (undhandledFrames < 1) {
     renderState.frameUnderFlow = true;
     return;
   }
