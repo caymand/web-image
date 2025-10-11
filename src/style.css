@@ -10,6 +10,7 @@ body {
 }
 
 #container {
+  position: relative; /* For positioning step buttons */
   display: flex;
   flex-direction: column;
   align-items: center;

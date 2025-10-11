@@ -1,16 +1,20 @@
 import * as UI from "./controls";
+import styles from "./controls.module.css";
 
 const root = document.getElementById('container')!;
 UI.createRoot(root);
 
-const stepButtonsBox = UI.addContainer();
+// Step buttons are direct children of root to be positioned over the canvas
+UI.stepBackward();
+UI.stepForward();
 
+// Main controls are in their own container below the canvas
+const controlsContainer = UI.addContainer();
+controlsContainer.className = styles.controlsContainer;
+UI.equipContainer(controlsContainer);
 
-const videoControlsBox = UI.addContainer();
-UI.equipContainer(videoControlsBox)
 UI.videoInput();
 UI.replayButton();
 UI.playPause();
-UI.endContainer();
 
-  
+UI.endContainer();

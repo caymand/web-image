@@ -1,14 +1,38 @@
+.controlsContainer {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
 .button {
-  background-color: #007bff;
+  background-color: transparent;
   color: white;
   padding: 10px 15px;
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.3s;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   font-family: inherit;
 }
 
+.button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
 .step {
-    
+  padding: 5px 10px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.stepLeft {
+  left: 20px;
+}
+
+.stepRight {
+  right: 20px;
 }

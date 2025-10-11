@@ -83,10 +83,29 @@ export function playPause() {
   button(onClick, "\u23EF")
 }
 
+export function stepBackward() {
+  const button = document.createElement('button');
+  button.textContent = "◀";
+  button.className = `${styles.button} ${styles.step} ${styles.stepLeft}`;
+  button.onclick = () => { /* Does nothing */ };
+
+  pushElement(button);
+}
+
+export function stepForward() {
+  const button = document.createElement('button');
+  button.textContent = "▶";
+  button.className = `${styles.button} ${styles.step} ${styles.stepRight}`;
+  button.onclick = () => { /* Does nothing */ };
+
+  pushElement(button);
+}
+
 export function videoInput() {
   const label = document.createElement('label');
   label.htmlFor = 'input';
   label.textContent = 'Select Video';
+  label.className = styles.button;
   pushElement(label);
 
   const fileInput = document.createElement('input');
@@ -111,13 +130,4 @@ export function videoInput() {
     renderWorker.postMessage({ type: "Video", data: file })
   });
 
-}
-
-export function videoControls(container: HTMLElement) {
-  equipContainer(container);
-  {
-    videoInput();
-    replayButton();
-  }
-  endContainer();
 }
