@@ -7,6 +7,8 @@ interface RenderState {
   videoSamplingStarted: boolean;
   videoDecoder: VideoDecoder;
 
+  isPaused: boolean;
+
   framesInFlight: Array<VideoFrame>;
   frameUnderFlow: boolean;
 
@@ -15,8 +17,7 @@ interface RenderState {
 }
 
 const FRAME_BUDGET = 1000 / 30;
-const MAX_FRAMES_IN_FLIGHT = 5;
-const MIN_FRAMES_IN_FLIGHT = 2;
+const MIN_FRAMES_IN_FLIGHT = 1;
 const chunkSize = 16 << 10; // 16KB chunk sizes
 const videoDecoderInit: VideoDecoderInit = {
   output: handleVideoFrame,
@@ -26,6 +27,7 @@ const renderState: RenderState = {
   framesInFlight: new Array(),
   videoDecoder: new VideoDecoder(videoDecoderInit),
   frameUnderFlow: true,
+  isPaused: false,
   videoSamplingStarted: false,
   videoOffset: 0,
 }
@@ -50,6 +52,15 @@ onmessage = (ev) => {
     }
     case "Replay": {
       doReplay();
+      break;
+    }
+    case "PlayPause": {
+      if (renderState.isPaused) {
+        renderState.isPaused = false;
+        setTimeout(renderLoop, 0);
+      } else {
+        renderState.isPaused = true;
+      }
       break;
     }
     default:
@@ -156,24 +167,31 @@ function handleVideoFrame(frame: VideoFrame) {
   }
 }
 
-/** Consumer */
-/** TODO: I don't think this exactly matches the FPS Target.
- */
+/** Consumer 
+ * Tries to process as many frames in flight as possible.
+ * In case the frame buffer underflows, the renderLoop needs to
+ * be rescheduled again bye the video frame handler.
+*/
 function renderLoop() {
+  if (renderState.isPaused) {
+    return;
+  }
+
+  const workStart = performance.now();
   const undhandledFrames = renderState.framesInFlight.length;
-  if (undhandledFrames < MIN_FRAMES_IN_FLIGHT) {
+  if (undhandledFrames <= MIN_FRAMES_IN_FLIGHT) {
     renderState.videoSamplingStarted = false;
     setTimeout(() =>
       readFile(renderState.videoFile!, renderState.videoOffset),
       0
     );
   }
+
   if (undhandledFrames < 1) {
     renderState.frameUnderFlow = true;
     return;
   }
 
-  const workStart = performance.now();
   const frame = renderState.framesInFlight.shift()!;
   const { width, height } = renderState.canvas!;
   renderState.frameUnderFlow = false;

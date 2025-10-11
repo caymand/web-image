@@ -13,4 +13,9 @@ export interface ReplayMsg {
   data: null;
 }
 
-export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg
+export interface PlayPauseMsg {
+  type: "PlayPause";
+  data: null;
+}
+
+export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg | PlayPauseMsg
