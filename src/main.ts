@@ -1,6 +1,16 @@
 import * as UI from "./controls";
 
-const container = document.getElementById('container')!;
-UI.createRoot(container);
+const root = document.getElementById('container')!;
+UI.createRoot(root);
+
+const stepButtonsBox = UI.addContainer();
+
+
 const videoControlsBox = UI.addContainer();
-UI.videoControls(videoControlsBox);
+UI.equipContainer(videoControlsBox)
+UI.videoInput();
+UI.replayButton();
+UI.playPause();
+UI.endContainer();
+
+  

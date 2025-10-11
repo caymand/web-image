@@ -29,19 +29,9 @@ input[type="file"] {
   display: none;
 }
 
-label, button {
-  background-color: #007bff;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  border: none;
-  font-family: inherit;
-}
-
-
 
 label:hover, button:hover {
   background-color: #0056b3;
 }
+
+

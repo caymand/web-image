@@ -1,4 +1,5 @@
-import type { CanvasMsg, ReplayMsg } from "./workerMsg";
+import type { CanvasMsg, PlayPauseMsg, ReplayMsg } from "./workerMsg";
+import styles from "./controls.module.css"
 
 export interface AppControls {
   fileInput: HTMLInputElement;
@@ -33,6 +34,7 @@ export function endContainer() {
   uistate.currentContainer = uistate.containers[uistate.containers.length - 1];
 }
 
+/** Create a container to push stuff into */
 export function addContainer() {
   const container = document.createElement("div");
   return container;
@@ -59,18 +61,26 @@ renderWorker.onmessage = (ev) => {
 export function button(onclick: (e?: PointerEvent) => void, text: string) {
   const button = document.createElement('button');
   button.textContent = text;
+  button.className = styles.button;
   button.onclick = onclick;
 
   pushElement(button);
 }
 
 export function replayButton() {
-  const msg: ReplayMsg = { type: "Replay", data: null };
   const onClick = () => {
+    const msg: ReplayMsg = { type: "Replay", data: null };
     renderWorker.postMessage(msg)
   };
   button(onClick, "Replay");
+}
 
+export function playPause() {
+  const onClick = () => {
+    const msg: PlayPauseMsg = {type: "PlayPause", data: null};
+    renderWorker.postMessage(msg)
+  }
+  button(onClick, "\u23EF")
 }
 
 export function videoInput() {
