@@ -7,6 +7,8 @@ interface RenderState {
   videoSamplingStarted: boolean;
   videoDecoder: VideoDecoder;
 
+  frameStart: number;
+
   isPaused: boolean;
 
   framesInFlight: Array<VideoFrame>;
@@ -30,6 +32,7 @@ const renderState: RenderState = {
   isPaused: false,
   videoSamplingStarted: false,
   videoOffset: 0,
+  frameStart: 0
 }
 
 /** Global message pipe */
@@ -101,9 +104,11 @@ function doReplay() {
 
 function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   const sample = samples[0];
+
   if (sample.data === undefined) {
     return;
   }
+  
   renderState.videoSamplingStarted = true;
   const chunk = new EncodedVideoChunk({
     data: sample!.data,
@@ -116,12 +121,30 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
 }
 
 function onMoovParsed(info: MP4Box.Movie) {
-  const videoTrack = info.tracks[0];
+  const videoTrack = info.videoTracks[0];
+  
+  // get the trak box associated with the vdeo stram
+  const trak = mp4box.getTrackById(videoTrack.id);
+  const stsd = trak.mdia.minf.stbl.stsd; // traverse the boxes
+  // I know it is a video and I can therefore do like this
+  const boxEntry = stsd.entries[0] as MP4Box.VisualSampleEntry;
+
+  if (boxEntry.avcC !== undefined) {
+    const avcC = boxEntry.avcC;
+    /**TODO(k):
+     * Now I should be able to parse the extraData, or in case of H264,
+     * the AVC decoder configuration record.
+     * This can be parsed to webcodecs.
+     */
+
+  }
+
+  //TODO: look at nb_samples - this gives me the number of frames.
 
   const config: VideoDecoderConfig = {
     codedHeight: videoTrack.track_height,
     codedWidth: videoTrack.track_width,
-    codec: videoTrack.codec
+    codec: videoTrack.codec,
   }
 
   renderState.videoDecoder.configure(config);
@@ -167,6 +190,27 @@ function handleVideoFrame(frame: VideoFrame) {
   }
 }
 
+function beginFrame() {
+  renderState.frameStart = performance.now();
+  const undhandledFrames = renderState.framesInFlight.length;
+  if (undhandledFrames <= MIN_FRAMES_IN_FLIGHT) {
+    renderState.videoSamplingStarted = false;
+    setTimeout(() =>
+      readFile(renderState.videoFile!, renderState.videoOffset),
+      0
+    );
+  }
+
+  return undhandledFrames;
+}
+function endFrame() {
+  const frameEnd = performance.now();
+  const workDuration = frameEnd - renderState.frameStart;
+  const nextFrameDelay = FRAME_BUDGET - workDuration;
+
+  setTimeout(renderLoop, nextFrameDelay);
+}
+
 /** Consumer 
  * Tries to process as many frames in flight as possible.
  * In case the frame buffer underflows, the renderLoop needs to
@@ -177,20 +221,14 @@ function renderLoop() {
     return;
   }
 
-  const workStart = performance.now();
-  const undhandledFrames = renderState.framesInFlight.length;
-  if (undhandledFrames <= MIN_FRAMES_IN_FLIGHT) {
-    renderState.videoSamplingStarted = false;
-    setTimeout(() =>
-      readFile(renderState.videoFile!, renderState.videoOffset),
-      0
-    );
-  }
+  // FRAME BEGIN
+  const undhandledFrames = beginFrame();
 
   if (undhandledFrames < 1) {
     renderState.frameUnderFlow = true;
     return;
   }
+
 
   const frame = renderState.framesInFlight.shift()!;
   const { width, height } = renderState.canvas!;
@@ -198,10 +236,6 @@ function renderLoop() {
   renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
   frame.close();
 
-  // Calculate how long the work took and wait for the remainder of the frame budget.
-  const workEnd = performance.now();
-  const workDuration = workEnd - workStart;
-  const nextFrameDelay = FRAME_BUDGET - workDuration;
-
-  setTimeout(renderLoop, nextFrameDelay);
+  // FRAME END
+  endFrame();
 }
