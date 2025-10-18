@@ -4,7 +4,7 @@ import * as MP4Box from "mp4box";
 interface RenderState {
   videoFile?: File;
   videoOffset: number;
-  videoSamplingStarted: boolean;
+  consumingVideoFrames: boolean;
   videoDecoder: VideoDecoder;
 
   frameStart: number;
@@ -30,7 +30,7 @@ const renderState: RenderState = {
   videoDecoder: new VideoDecoder(videoDecoderInit),
   frameUnderFlow: true,
   isPaused: false,
-  videoSamplingStarted: false,
+  consumingVideoFrames: false,
   videoOffset: 0,
   frameStart: 0
 }
@@ -102,6 +102,10 @@ function doReplay() {
   readFile(renderState.videoFile, 0);
 }
 
+/** TODO(k): Think about the scenario where the video decoder gets full of frames,
+ * because the frames are not consumed fast enough.
+ * Drop frames? 
+ */
 function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   const sample = samples[0];
 
@@ -109,15 +113,15 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
     return;
   }
 
-  renderState.videoSamplingStarted = true;
   const chunk = new EncodedVideoChunk({
-    data: sample!.data,
+    data: sample.data,
     type: sample.is_sync ? "key" : "delta",
     duration: sample.duration,
     timestamp: sample.dts
   })
 
   renderState.videoDecoder.decode(chunk);
+  mp4box.releaseUsedSamples(sample.track_id, sample.number);
 }
 
 function onMoovParsed(info: MP4Box.Movie) {
@@ -130,36 +134,33 @@ function onMoovParsed(info: MP4Box.Movie) {
   // I know it is a video and I can therefore do like this
   const boxEntry = stsd.entries[0] as MP4Box.VisualSampleEntry;
 
+  let config: VideoDecoderConfig | null = null;
   // Match the box type to get the decode info
   if (boxEntry.avcC !== undefined) {
     const avcC = boxEntry.avcC;
     const stream = new MP4Box.MultiBufferStream();
     avcC.write(stream);
-    // stream.buffer
-    // const start = avcC.start!;
-    // const size = avcC.size;
-    // const extraData = readChunk(renderState.videoFile!, size, start);
 
-    const extraData = stream.buffer;
+    // Skip the header of the AVC Decoder configuration record
+    // Default to 8 if the hdr_size is not set.
+    const extraData = stream.buffer.slice(avcC.hdr_size ?? 8);
 
     //TODO: look at nb_samples - this gives me the number of frames.
-    const config: VideoDecoderConfig = {
+    config = {
       codedHeight: videoTrack.track_height,
       codedWidth: videoTrack.track_width,
       codec: videoTrack.codec,
       description: extraData,
     }
 
-    VideoDecoder.isConfigSupported(config).then((x) => {
-      console.log(x);
-    })
-
-    renderState.videoDecoder.configure(config);
-
-    mp4box.setExtractionOptions(videoTrack.id, videoTrack, { nbSamples: 1 })
-    mp4box.start();
-
   }
+  if (config === null) {
+    return;
+  }
+  renderState.videoDecoder.configure(config);
+
+  mp4box.setExtractionOptions(videoTrack.id, videoTrack, { nbSamples: 1 });
+  mp4box.start();
 }
 
 function readChunk(file: File, chunkSize: number, offset: number) {
@@ -184,14 +185,15 @@ async function readFile(file: File, offset: number) {
   const nextOffset = mp4box.appendBuffer(buffer);
   renderState.videoOffset = nextOffset;
 
-  // Schedule next chunk processing to avoid blocking the event loop
-  if (!renderState.videoSamplingStarted) {
+  // Keep reading chunks until the video decoder starts producing frames.
+  if (!renderState.consumingVideoFrames) {
     setTimeout(() => readFile(file, nextOffset), 0);
   }
 }
 
 /** Producer */
 function handleVideoFrame(frame: VideoFrame) {
+  renderState.consumingVideoFrames = true;
   renderState.framesInFlight.push(frame)
   if (renderState.frameUnderFlow) {
     renderState.frameUnderFlow = false;
@@ -203,7 +205,7 @@ function beginFrame() {
   renderState.frameStart = performance.now();
   const undhandledFrames = renderState.framesInFlight.length;
   if (undhandledFrames <= MIN_FRAMES_IN_FLIGHT) {
-    renderState.videoSamplingStarted = false;
+    renderState.consumingVideoFrames = false;
     setTimeout(() =>
       readFile(renderState.videoFile!, renderState.videoOffset),
       0
