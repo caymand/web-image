@@ -108,7 +108,7 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
   if (sample.data === undefined) {
     return;
   }
-  
+
   renderState.videoSamplingStarted = true;
   const chunk = new EncodedVideoChunk({
     data: sample!.data,
@@ -122,35 +122,44 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
 
 function onMoovParsed(info: MP4Box.Movie) {
   const videoTrack = info.videoTracks[0];
-  
+
   // get the trak box associated with the vdeo stram
   const trak = mp4box.getTrackById(videoTrack.id);
-  const stsd = trak.mdia.minf.stbl.stsd; // traverse the boxes
+  // traverse the boxes until the sample desciption box.
+  const stsd = trak.mdia.minf.stbl.stsd;
   // I know it is a video and I can therefore do like this
   const boxEntry = stsd.entries[0] as MP4Box.VisualSampleEntry;
 
+  // Match the box type to get the decode info
   if (boxEntry.avcC !== undefined) {
     const avcC = boxEntry.avcC;
-    /**TODO(k):
-     * Now I should be able to parse the extraData, or in case of H264,
-     * the AVC decoder configuration record.
-     * This can be parsed to webcodecs.
-     */
+    const stream = new MP4Box.MultiBufferStream();
+    avcC.write(stream);
+    // stream.buffer
+    // const start = avcC.start!;
+    // const size = avcC.size;
+    // const extraData = readChunk(renderState.videoFile!, size, start);
+
+    const extraData = stream.buffer;
+
+    //TODO: look at nb_samples - this gives me the number of frames.
+    const config: VideoDecoderConfig = {
+      codedHeight: videoTrack.track_height,
+      codedWidth: videoTrack.track_width,
+      codec: videoTrack.codec,
+      description: extraData,
+    }
+
+    VideoDecoder.isConfigSupported(config).then((x) => {
+      console.log(x);
+    })
+
+    renderState.videoDecoder.configure(config);
+
+    mp4box.setExtractionOptions(videoTrack.id, videoTrack, { nbSamples: 1 })
+    mp4box.start();
 
   }
-
-  //TODO: look at nb_samples - this gives me the number of frames.
-
-  const config: VideoDecoderConfig = {
-    codedHeight: videoTrack.track_height,
-    codedWidth: videoTrack.track_width,
-    codec: videoTrack.codec,
-  }
-
-  renderState.videoDecoder.configure(config);
-
-  mp4box.setExtractionOptions(videoTrack.id, videoTrack, { nbSamples: 1 })
-  mp4box.start();
 }
 
 function readChunk(file: File, chunkSize: number, offset: number) {
