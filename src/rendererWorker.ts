@@ -28,7 +28,7 @@ const videoDecoderInit: VideoDecoderInit = {
   error: (e) => console.log(e.message)
 }
 const renderState: RenderState = {
-  framesInFlight: new Array(),
+  framesInFlight: [],
   videoDecoder: new VideoDecoder(videoDecoderInit),
   frameUnderFlow: true,
   isPaused: false,
@@ -77,7 +77,7 @@ onmessage = (ev) => {
 
 /** MP4Box setup */
 function init_mp4box() {
-  let mp4box = MP4Box.createFile();
+  const mp4box = MP4Box.createFile();
 
   mp4box.onSamples = onVideoSample
   mp4box.onReady = onMoovParsed

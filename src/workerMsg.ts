@@ -19,3 +19,8 @@ export interface PlayPauseMsg {
 }
 
 export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg | PlayPauseMsg
+
+export const worker: { deref?: Worker } = {};
+export const setWorker = (newWorker: Worker) => {
+  worker.deref = newWorker;
+};
