@@ -7,6 +7,8 @@ interface RenderState {
   consumingVideoFrames: boolean;
   videoDecoder: VideoDecoder;
 
+  frameBudget_ms: number;
+
   frameStart: number;
 
   isPaused: boolean;
@@ -18,9 +20,9 @@ interface RenderState {
   canvasCtx?: OffscreenCanvasRenderingContext2D;
 }
 
-const FRAME_BUDGET = 1000 / 30;
 const MIN_FRAMES_IN_FLIGHT = 1;
-const chunkSize = 16 << 10; // 16KB chunk sizes
+const CHUNK_SIZE = 16 << 10; // 16KB chunk sizes
+
 const videoDecoderInit: VideoDecoderInit = {
   output: handleVideoFrame,
   error: (e) => console.log(e.message)
@@ -32,7 +34,8 @@ const renderState: RenderState = {
   isPaused: false,
   consumingVideoFrames: false,
   videoOffset: 0,
-  frameStart: 0
+  frameStart: 0,
+  frameBudget_ms: 1000 / 30 // 30fps default,
 }
 
 /** Global message pipe */
@@ -127,6 +130,10 @@ function onVideoSample(_id: number, _user: unknown, samples: MP4Box.Sample[]) {
 function onMoovParsed(info: MP4Box.Movie) {
   const videoTrack = info.videoTracks[0];
 
+  // time for a single frame
+  const avgSampleDuration = info.duration / videoTrack.nb_samples;  
+  renderState.frameBudget_ms = Math.round(avgSampleDuration);
+
   // get the trak box associated with the vdeo stram
   const trak = mp4box.getTrackById(videoTrack.id);
   // traverse the boxes until the sample desciption box.
@@ -180,7 +187,7 @@ async function readFile(file: File, offset: number) {
     return;
   }
 
-  const chunk = await readChunk(file, chunkSize, offset);
+  const chunk = await readChunk(file, CHUNK_SIZE, offset);
   const buffer = MP4Box.MP4BoxBuffer.fromArrayBuffer(chunk, offset);
   const nextOffset = mp4box.appendBuffer(buffer);
   renderState.videoOffset = nextOffset;
@@ -217,7 +224,7 @@ function beginFrame() {
 function endFrame() {
   const frameEnd = performance.now();
   const workDuration = frameEnd - renderState.frameStart;
-  const nextFrameDelay = FRAME_BUDGET - workDuration;
+  const nextFrameDelay = renderState.frameBudget_ms - workDuration;
 
   setTimeout(renderLoop, nextFrameDelay);
 }
@@ -231,7 +238,6 @@ function renderLoop() {
   if (renderState.isPaused) {
     return;
   }
-
   // FRAME BEGIN
   const undhandledFrames = beginFrame();
 
@@ -239,9 +245,8 @@ function renderLoop() {
     renderState.frameUnderFlow = true;
     return;
   }
-
-
   const frame = renderState.framesInFlight.shift()!;
+
   const { width, height } = renderState.canvas!;
   renderState.frameUnderFlow = false;
   renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
