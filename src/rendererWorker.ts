@@ -69,6 +69,11 @@ onmessage = (ev) => {
       }
       break;
     }
+    case "Resize": {      
+      renderState.canvas!.width = data.width;
+      renderState.canvas!.height = data.height;
+      break;
+    }
     default:
       console.error("Unknown message:", ev.data);
   }

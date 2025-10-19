@@ -18,7 +18,12 @@ export interface PlayPauseMsg {
   data: null;
 }
 
-export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg | PlayPauseMsg
+export interface ResizeMsg {
+  type: "Resize";
+  data: {width: number, height: number};
+}
+
+export type WorkerMsg = CanvasMsg | VideoFileMsg | ReplayMsg | PlayPauseMsg | ResizeMsg
 
 export const worker: { deref?: Worker } = {};
 export const setWorker = (newWorker: Worker) => {
