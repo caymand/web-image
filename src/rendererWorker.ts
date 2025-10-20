@@ -7,6 +7,8 @@ interface RenderState {
   consumingVideoFrames: boolean;
   videoDecoder: VideoDecoder;
 
+  currentFrame?: VideoFrame;
+
   frameBudget_ms: number;
 
   frameStart: number;
@@ -69,9 +71,12 @@ onmessage = (ev) => {
       }
       break;
     }
-    case "Resize": {      
+    case "Resize": {
       renderState.canvas!.width = data.width;
       renderState.canvas!.height = data.height;
+      if (renderState.currentFrame) {
+        drawFrame(renderState.currentFrame);
+      }
       break;
     }
     default:
@@ -136,7 +141,7 @@ function onMoovParsed(info: MP4Box.Movie) {
   const videoTrack = info.videoTracks[0];
 
   // time for a single frame
-  const avgSampleDuration = info.duration / videoTrack.nb_samples;  
+  const avgSampleDuration = info.duration / videoTrack.nb_samples;
   renderState.frameBudget_ms = Math.round(avgSampleDuration);
 
   // get the trak box associated with the vdeo stram
@@ -157,7 +162,6 @@ function onMoovParsed(info: MP4Box.Movie) {
     // Default to 8 if the hdr_size is not set.
     const extraData = stream.buffer.slice(avcC.hdr_size ?? 8);
 
-    //TODO: look at nb_samples - this gives me the number of frames.
     config = {
       codedHeight: videoTrack.track_height,
       codedWidth: videoTrack.track_width,
@@ -234,6 +238,18 @@ function endFrame() {
   setTimeout(renderLoop, nextFrameDelay);
 }
 
+function drawFrame(frame: VideoFrame) {
+  const { width } = renderState.canvas!;
+  const { codedWidth, codedHeight } = frame;
+
+  const r = codedHeight / codedWidth;
+  const h = r * width;
+  const w = width;
+
+  renderState.frameUnderFlow = false;
+  renderState.canvasCtx?.drawImage(frame, 0, 0, w, h);
+}
+
 /** Consumer 
  * Tries to process as many frames in flight as possible.
  * In case the frame buffer underflows, the renderLoop needs to
@@ -251,11 +267,10 @@ function renderLoop() {
     return;
   }
   const frame = renderState.framesInFlight.shift()!;
-
-  const { width, height } = renderState.canvas!;
-  renderState.frameUnderFlow = false;
-  renderState.canvasCtx?.drawImage(frame, 0, 0, width, height);
-  frame.close();
+  // Release resouces for the last frame and set and draw the new frame.
+  renderState.currentFrame?.close();
+  drawFrame(frame);
+  renderState.currentFrame = frame;
 
   // FRAME END
   endFrame();

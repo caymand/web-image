@@ -9,10 +9,9 @@ export const DrawingSurface: React.FC = () => {
 
   const onResize = useCallback(() => {
     if (containerRef.current) {
-      const width = containerRef.current.clientWidth;
-      const height = containerRef.current.clientHeight;
+      const rect = containerRef.current.getBoundingClientRect()
       if (worker.deref) {
-        const msg: ResizeMsg = { type: "Resize", data: { width, height } };
+        const msg: ResizeMsg = { type: "Resize", data: { width: rect.width, height: rect.height } };
         worker.deref.postMessage(msg)
       }
     }
