@@ -12,7 +12,7 @@ export const DrawingSurface: React.FC = () => {
       const rect = containerRef.current.getBoundingClientRect()
       if (worker.deref) {
         const msg: ResizeMsg = { type: "Resize", data: { width: rect.width, height: rect.height } };
-        // worker.deref.postMessage(msg)
+        worker.deref.postMessage(msg)
       }
     }
   }, [])

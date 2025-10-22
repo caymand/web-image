@@ -1,4 +1,4 @@
-.app {    
+.app {
     height: 100%;
 
     display: flex;
@@ -8,13 +8,12 @@
 .drawingSurface {
   border: 1px solid #444;
   border-radius: 5px;
-
-  margin: 1em;
+  flex-grow: 1;
 }
-
 .controlsBar {
   display: flex;
   justify-content: center;
+  margin: 1em
 }
 
 .button {
