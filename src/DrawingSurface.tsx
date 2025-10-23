@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import { worker, type CanvasMsg, type ResizeMsg } from "./workerMsg";
 import style from "./controls.module.css"
+import { clearRenderState, initRenderState, renderLoop } from "./renderer";
 
 export const DrawingSurface: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasTransferred = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -13,8 +15,20 @@ export const DrawingSurface: React.FC = () => {
       if (worker.deref) {
         const msg: ResizeMsg = { type: "Resize", data: { width: rect.width, height: rect.height } };
         worker.deref.postMessage(msg)
+      }      
+      if (drawingCanvasRef.current !== null) {
+        drawingCanvasRef.current.width = rect.width;
+        drawingCanvasRef.current.height = rect.height;
       }
+      renderLoop(0);
     }
+  }, [])
+
+  useEffect(() => {
+    if (drawingCanvasRef.current !== null) {      
+      initRenderState(drawingCanvasRef.current);
+    }
+    return clearRenderState
   }, [])
 
   useEffect(() => {
@@ -31,11 +45,10 @@ export const DrawingSurface: React.FC = () => {
         type: 'module',
       });
       worker.deref = renderWorker;
-      renderWorker.postMessage("foo");
     }
 
-    if (canvasRef.current && !canvasTransferred.current) {
-      const offScreenCanvas = canvasRef.current.transferControlToOffscreen();
+    if (videoCanvasRef.current && !canvasTransferred.current) {
+      const offScreenCanvas = videoCanvasRef.current.transferControlToOffscreen();
       const msg: CanvasMsg = { data: offScreenCanvas, type: 'Canvas' };
       worker.deref.postMessage(msg, [offScreenCanvas]);
       canvasTransferred.current = true;
@@ -50,7 +63,8 @@ export const DrawingSurface: React.FC = () => {
 
   return <>
     <div ref={containerRef} className={style.drawingSurface}>
-      <canvas ref={canvasRef}></canvas>
+      <canvas ref={videoCanvasRef}></canvas>
+      <canvas ref={drawingCanvasRef}></canvas>
     </div>
   </>
 

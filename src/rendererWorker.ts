@@ -3,15 +3,14 @@ import * as MP4Box from "mp4box";
 
 interface RenderState {
   videoFile?: File;
+
   videoOffset: number;
   consumingVideoFrames: boolean;
   videoDecoder: VideoDecoder;
-
   currentFrame?: VideoFrame;
 
   frameBudget_ms: number;
-
-  frameStart: number;
+  frame_t0: number;
 
   isPaused: boolean;
 
@@ -36,7 +35,7 @@ const renderState: RenderState = {
   isPaused: false,
   consumingVideoFrames: false,
   videoOffset: 0,
-  frameStart: 0,
+  frame_t0: 0,
   frameBudget_ms: 1000 / 30 // 30fps default,
 }
 
@@ -218,7 +217,7 @@ function handleVideoFrame(frame: VideoFrame) {
 }
 
 function beginFrame() {
-  renderState.frameStart = performance.now();
+  renderState.frame_t0 = performance.now();
   const undhandledFrames = renderState.framesInFlight.length;
   if (undhandledFrames <= MIN_FRAMES_IN_FLIGHT) {
     renderState.consumingVideoFrames = false;
@@ -232,7 +231,7 @@ function beginFrame() {
 }
 function endFrame() {
   const frameEnd = performance.now();
-  const workDuration = frameEnd - renderState.frameStart;
+  const workDuration = frameEnd - renderState.frame_t0;
   const nextFrameDelay = renderState.frameBudget_ms - workDuration;
 
   setTimeout(renderLoop, nextFrameDelay);
