@@ -118,24 +118,7 @@ export function newPoint(x: number, y: number): Object {
 
   const pointComponentIdx = archeType.componentOffset.get(pointComponent)!;
   archeType.columns[pointComponentIdx].push(x, y);
-
-  // if (archeType === null) {
-  //   const posArr: PositionArray = [x, y];
-  //   const objectArr: ObjectArray = [objectId];
-  //   const componentTable: ComponentTable = {
-  //     length: 1,
-  //     archetypeId: archeTypeId,
-  //     columns: [
-  //       objectArr,
-  //       posArr
-  //     ]
-  //   }
-  //   drawState.componentTables.push(componentTable);
-  // }
-  // else {
-  //   archeType.columns[1].push(x, y);
-  // }
-
+  
   return objectId;
 }
 
