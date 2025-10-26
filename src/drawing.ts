@@ -1,7 +1,33 @@
+type PositionArray = Array<number>;
+type ObjectArray = Array<number>;
+
+type ComponentArrays = ObjectArray | PositionArray;
+
+export type Object = number;
+
+enum Components {
+  OBJECT = 0,
+  POINT,
+}
+
+export interface ComponentTable {
+  length: number;
+  archetypeId: number;
+  componentOffset: Map<Components, number>;
+  columns: (ComponentArrays)[]
+}
+
+
 export interface DrawState {
-  nextId: number;
-  vertices: Array<number>;
-  vertexIdxs: Map<number, number>;
+  // 64-bit increasing id counter.
+  nextId: Object;
+  // Bit offset
+  nextComponentSlot: number;
+  // Cache mapping a component name to its slot.
+  componentIds: Map<Components, number>;
+
+  // Store archetypes
+  componentTables: Array<ComponentTable>;
 }
 
 export interface Drawable {
@@ -12,58 +38,107 @@ export interface Drawable {
   hot: number;
 }
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-const drawState: DrawState = { 
-  nextId: 0, 
-  vertices: [], 
-  vertexIdxs: new Map() 
+const drawState: DrawState = {
+  nextId: 0,
+  nextComponentSlot: 0,
+  componentIds: new Map(),
+  componentTables: []
 };
 
 function getNextId() {
-  const nextId = drawState.nextId;
-  drawState.nextId++;
+  const nextId = drawState.nextId++;
 
   return nextId;
 }
 
-export function newPoint(x: number, y: number) {  
-  const id = getNextId();
-  const offset = drawState.vertices.length;
-  drawState.vertexIdxs.set(id, offset);
-  drawState.vertices.push(x, y);
+function getNextComponentId() {
+  const componentSlot = drawState.nextComponentSlot++;
+  const componentId = 1 << componentSlot;
 
-  const drawable: Drawable = {
-    entity: id,
-    hot: 0,
-    isDirty: true,
-    properties: []
+  return componentId;
+}
+
+function getArcheTypeId(components: Components[]) {
+  let archeType = 0;
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i];
+    let componentId = drawState.componentIds.get(component);
+
+    if (componentId === undefined) {
+      componentId = getNextComponentId();
+    }
+    drawState.componentIds.set(component, componentId);
+    archeType |= componentId;
   }
 
-  return drawable;
+  return archeType;
 }
 
+function addComponents(
+  object: number, components: Components[]
+): [number, ComponentTable] {
+  const archetypeId = getArcheTypeId(components);
+  for (let i = 0; i < drawState.componentTables.length; i++) {
+    const archeType = drawState.componentTables[i];
+    if (archeType.archetypeId === archetypeId) {
+      archeType.columns[0].push(object);
+      return [archetypeId, archeType];
+    }
+  }
 
+  const objArry: ObjectArray = [object]
+  let offsetTable = new Map<Components, number>();
+  // Store objectIds + all components
+  let columns = new Array<ComponentArrays>(components.length + 1);
+  columns[0] = objArry;
 
-const components: Array<number> = [];
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i];
+    const offset = i + 1;
+    offsetTable.set(component, offset);
+    columns[offset] = new Array();
+  }
 
-export interface Line {
-  x: number;
-  y: number;
+  const componentTable: ComponentTable = {
+    length: 1,
+    componentOffset: offsetTable,
+    archetypeId: archetypeId,
+    columns: columns
+  };
+
+  drawState.componentTables.push(componentTable);
+
+  return [archetypeId, componentTable];
 }
 
+export function newPoint(x: number, y: number): Object {
+  const objectId: Object = getNextId();
+  const pointComponent = Components.POINT;
+  const [archeTypeId, archeType] = addComponents(objectId, [pointComponent]);
 
-export function newLine(x1: number, y1: number, x2: number, y2: number) {
-  const p1: Point = newPoint(x1, x2)
-  const p2: Point = newPoint(x1, x2);
+  const pointComponentIdx = archeType.componentOffset.get(pointComponent)!;
+  archeType.columns[pointComponentIdx].push(x, y);
 
-  const id = getNextId();
+  // if (archeType === null) {
+  //   const posArr: PositionArray = [x, y];
+  //   const objectArr: ObjectArray = [objectId];
+  //   const componentTable: ComponentTable = {
+  //     length: 1,
+  //     archetypeId: archeTypeId,
+  //     columns: [
+  //       objectArr,
+  //       posArr
+  //     ]
+  //   }
+  //   drawState.componentTables.push(componentTable);
+  // }
+  // else {
+  //   archeType.columns[1].push(x, y);
+  // }
 
-
+  return objectId;
 }
+
 
 /** Want to draw a straight line, from the click until the current mouse
  * position. When dragging stops, we stop the line and save the object.

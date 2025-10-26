@@ -32,13 +32,15 @@ export function clearRenderState() {
 
 function mouseDown(ev: MouseEvent) {
   const point = newPoint(ev.x, ev.y);
+
+  return;
 }
 
 function setupInputHandlers(canvas: HTMLCanvasElement) {
   // TODO(k): Handlers for these events should be all we need for 
   // drawing.
   canvas.onmousemove;
-  canvas.onmousedown;
+  canvas.onmousedown = mouseDown
   canvas.onmouseup;
 }
 
