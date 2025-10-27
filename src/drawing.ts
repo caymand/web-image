@@ -1,18 +1,21 @@
 type PositionArray = Array<number>;
 type ObjectArray = Array<number>;
+type AnimationArray = Array<number>;
+// TODO: colorComponent
 
-type ComponentArrays = ObjectArray | PositionArray;
+type ComponentArrays = ObjectArray | PositionArray | AnimationArray;
 
 export type Object = number;
 
-enum Components {
+export enum Components {
   OBJECT = 0,
   POINT,
+  ANIMATION,
 }
 
 export interface ComponentTable {
   length: number;
-  archetypeId: number;
+  archeTypeId: number;
   componentOffset: Map<Components, number>;
   columns: (ComponentArrays)[]
 }
@@ -52,12 +55,18 @@ function getNextId() {
 }
 
 function getNextComponentId() {
+  if (drawState.nextComponentSlot >= 63) {
+    throw new DOMException("Too many components allocated");
+  }
   const componentSlot = drawState.nextComponentSlot++;
   const componentId = 1 << componentSlot;
 
   return componentId;
 }
 
+// TODO(k): This also crates a new componentID if the component was not
+// found. This is useful for when creating an arctype with a new component
+// but it also means querying for an invalid component creates an ID.
 function getArcheTypeId(components: Components[]) {
   let archeType = 0;
   for (let i = 0; i < components.length; i++) {
@@ -66,11 +75,10 @@ function getArcheTypeId(components: Components[]) {
 
     if (componentId === undefined) {
       componentId = getNextComponentId();
+      drawState.componentIds.set(component, componentId);
     }
-    drawState.componentIds.set(component, componentId);
     archeType |= componentId;
   }
-
   return archeType;
 }
 
@@ -80,12 +88,13 @@ function addComponents(
   const archetypeId = getArcheTypeId(components);
   for (let i = 0; i < drawState.componentTables.length; i++) {
     const archeType = drawState.componentTables[i];
-    if (archeType.archetypeId === archetypeId) {
+    if (archeType.archeTypeId === archetypeId) {
       archeType.columns[0].push(object);
       return [archetypeId, archeType];
     }
   }
 
+  // If the archeType has not yet been created, we need to create it
   const objArry: ObjectArray = [object]
   let offsetTable = new Map<Components, number>();
   // Store objectIds + all components
@@ -102,7 +111,7 @@ function addComponents(
   const componentTable: ComponentTable = {
     length: 1,
     componentOffset: offsetTable,
-    archetypeId: archetypeId,
+    archeTypeId: archetypeId,
     columns: columns
   };
 
@@ -111,15 +120,35 @@ function addComponents(
   return [archetypeId, componentTable];
 }
 
-export function newPoint(x: number, y: number): Object {
+export function getComponent(archeType: ComponentTable, component: Components) {
+  const componentIdx = archeType.componentOffset.get(component)!;
+
+  return archeType.columns[componentIdx];
+}
+
+export function newPoint(x: number, y: number, r: number): Object {
   const objectId: Object = getNextId();
   const pointComponent = Components.POINT;
-  const [archeTypeId, archeType] = addComponents(objectId, [pointComponent]);
+  const animationComp = Components.ANIMATION;
+  const [, archeType] = addComponents(objectId, [pointComponent, animationComp]);
 
   const pointComponentIdx = archeType.componentOffset.get(pointComponent)!;
-  archeType.columns[pointComponentIdx].push(x, y);
-  
+  const animationCompIdx = archeType.componentOffset.get(animationComp)!;
+  archeType.columns[pointComponentIdx].push(x, y, r);
+  archeType.columns[animationCompIdx].push(1.0);
+
   return objectId;
+}
+
+export function queryObjects(components: Components[]): ComponentTable | null {
+  const archeTypeId = getArcheTypeId(components);
+  for (let i = 0; i < drawState.componentTables.length; i++) {
+    const archType = drawState.componentTables[i];
+    if (archType.archeTypeId == archeTypeId) {
+      return archType;
+    }
+  }
+  return null;
 }
 
 
