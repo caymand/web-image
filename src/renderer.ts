@@ -1,4 +1,4 @@
-import { Components, getComponent, newPoint, queryObjects, type Drawable } from "./drawing";
+import { Components, getComponent, newPoint, queryObjects, type Drawable } from "./ecs";
 
 interface RenderState {
   ctx: CanvasRenderingContext2D;
