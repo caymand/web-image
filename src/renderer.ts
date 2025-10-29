@@ -80,26 +80,27 @@ function renderPointsSystem(time: number) {
     const radius = pointComp[i * 3 + 2];
     const animationProgress = animationComp[i] * animationDuration;
 
-    const dt = time - renderState!.currentTime;
-    renderState!.currentTime = time;
-    const nextRadius = dt * growFactor + radius;
+    let nextRadius: number;
 
+    if (animationProgress > 0) {
+      const dt = time - renderState!.currentTime;
+      nextRadius = dt * growFactor + radius;
+      const remainingAnimation = Math.max(0, animationProgress - dt);      
+      animationComp[i] = remainingAnimation / animationDuration;    
+      pointComp[i * 3 + 2] = nextRadius;      
+    } else {
+      nextRadius = radius;
+      // renderState!.isDirty = false;
+    }    
+
+    // TODO(k): Here we render all points? Do we always want that?
     const ctx = renderState!.ctx;
     ctx.fillStyle = "#ff00ff";
     ctx.beginPath()
     ctx.arc(x, y, nextRadius, 0, 2 * Math.PI, true);
     ctx.fill();
-
-    const remainingAnimation = Math.max(0, animationProgress - dt);
-    animationComp[i] = remainingAnimation / animationDuration;
-    if (remainingAnimation <= 0) {
-      renderState!.isDirty = false;
-    }
-    else {
-      pointComp[i * 3 + 2] = nextRadius;
-    }
   }
-
+  renderState!.currentTime = time;
 }
 
 function loop(time: number) {
