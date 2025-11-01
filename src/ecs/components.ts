@@ -1,3 +1,4 @@
+import type { Component } from "react";
 import { firstSet, stripBits } from "../BitSet";
 
 type PositionArray = Array<number>;
@@ -5,7 +6,7 @@ type EntityArray = Array<number>;
 type LinearAnimationArray = Array<number>;
 type RenderableArray = Array<boolean>;
 
-type ComponentArrays = PositionArray | LinearAnimationArray ;
+type ComponentArrays = PositionArray | LinearAnimationArray | RenderableArray;
 
 export enum Components {
   POINT = 1 << 0,
@@ -13,6 +14,11 @@ export enum Components {
   RENDERABLE = ANIMATION << 1,
 }
 
+type ComponentMap = {
+  [Components.POINT]: PositionArray;
+  [Components.ANIMATION]: LinearAnimationArray;
+  [Components.RENDERABLE]: RenderableArray;
+};
 
 export interface ComponentTable {
   // Table length
@@ -130,10 +136,12 @@ export function addComponents(
   return [components, componentTable];
 }
 
-export function getComponent(archeType: ComponentTable, component: Components) {
+export function getComponent<T extends Components>(
+  archeType: ComponentTable, component: T
+): ComponentMap[T] {
   const componentIdx = archeType.componentOffset.get(component)!;
 
-  return archeType.columns[componentIdx];
+  return archeType.columns[componentIdx] as ComponentMap[T];
 }
 
 export function queryObjects(components: Components): ComponentTable | null {
