@@ -70,6 +70,17 @@ export function getIndividualComponents(components: Components): Array<Component
   return individualComponents;
 }
 
+/**
+ * TODO(k):
+ * Instead of building an archetype directly whenever a grouping of components
+ * are added to an entity, it could be an idea to instead just register the
+ * entity to the components, and then build the component table depening
+ * on the query.
+ * For this to work, I need a better way to register which components are
+ * registered to an entity. 
+ * Maybe just do this using a map from from entity to a bit set of the
+ * registered components? Probably better.
+ */
 export function addComponents(
   entity: number, components: Components
 ): [number, ComponentTable] {
