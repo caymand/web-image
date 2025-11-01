@@ -1,4 +1,4 @@
-import { Components, getComponent, queryObjects } from "./components";
+import { Components, getComponent, queryEntities } from "./components";
 import { newPoint } from "../annotations";
 
 interface RenderState {
@@ -40,7 +40,7 @@ const growFactor = (endRadius - radius) / animationDuration;
 
 function renderPointsSystem(time: number) {
   const animationPoints = Components.POINT | Components.ANIMATION;
-  const pointsComponent = queryObjects(animationPoints);
+  const pointsComponent = queryEntities(animationPoints);
   if (pointsComponent === null) {
     return;
   }

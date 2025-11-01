@@ -1,4 +1,3 @@
-import type { Component } from "react";
 import { firstSet, stripBits } from "../BitSet";
 
 type PositionArray = Array<number>;
@@ -50,37 +49,6 @@ const componentsState: ComponentsState = {
   componentIds: new Map(),
   componentTables: []
 };
-
-// function getNextComponentId() {
-//   if (componentsState.nextComponentSlot >= 63) {
-//     throw new DOMException("Too many components allocated");
-//   }
-//   const componentSlot = componentsState.nextComponentSlot++;
-//   const componentId = 1 << componentSlot;
-
-//   return componentId;
-// }
-
-/** FUNCTIONS FOR CREATING AND UPDATING COMPONENTS */
-
-// TODO(k): This also crates a new componentID if the component was not
-// found. This is useful for when creating an arctype with a new component
-// but it also means querying for an invalid component creates an ID.
-// function registerComponentTable(components: Components) {
-
-//   let archeType = 0;
-//   for (let i = 0; i < components.length; i++) {
-//     const component = components[i];
-//     let componentId = componentsState.componentIds.get(component);
-
-//     if (componentId === undefined) {
-//       componentId = getNextComponentId();
-//       componentsState.componentIds.set(component, componentId);
-//     }
-//     archeType |= componentId;
-//   }
-//   return archeType;
-// }
 
 export function getIndividualComponents(components: Components): Array<Components> {
   let idx = firstSet(components);
@@ -144,7 +112,7 @@ export function getComponent<T extends Components>(
   return archeType.columns[componentIdx] as ComponentMap[T];
 }
 
-export function queryObjects(components: Components): ComponentTable | null {
+export function queryEntities(components: Components): ComponentTable | null {
   for (let i = 0; i < componentsState.componentTables.length; i++) {
     const archType = componentsState.componentTables[i];
     if (archType.archeTypeId == components) {
