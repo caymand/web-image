@@ -1,4 +1,4 @@
-import { worker, type PlayPauseMsg, type WorkerMsg, type ReplayMsg, type VideoFileMsg } from "./workerMsg"
+import { worker, type PlayPauseMsg, type WorkerMsg, type ReplayMsg, type VideoFileMsg } from "../workerMsg"
 import styles from './controls.module.css';
 import { useCallback, useMemo } from "react";
 

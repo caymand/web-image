@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
-import { worker, type CanvasMsg, type ResizeMsg } from "./workerMsg";
+import { worker, type CanvasMsg, type ResizeMsg } from "../workerMsg";
 import style from "./controls.module.css"
-import { clearRenderState, initRenderState, renderLoop } from "./renderer";
+import { clearRenderState, initRenderState, renderLoop } from "../ecs/renderSystem";
 
 export const DrawingSurface: React.FC = () => {
   const videoCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,7 +41,7 @@ export const DrawingSurface: React.FC = () => {
 
   useEffect(() => {
     if (worker.deref === undefined) {
-      const renderWorker = new Worker(new URL('./rendererWorker.ts', import.meta.url), {
+      const renderWorker = new Worker(new URL('../rendererWorker.ts', import.meta.url), {
         type: 'module',
       });
       worker.deref = renderWorker;

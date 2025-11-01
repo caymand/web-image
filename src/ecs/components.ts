@@ -1,11 +1,10 @@
+import { type Entity } from "./entity";
+
 type PositionArray = Array<number>;
 type ObjectArray = Array<number>;
 type AnimationArray = Array<number>;
-// TODO: colorComponent
 
 type ComponentArrays = ObjectArray | PositionArray | AnimationArray;
-
-export type Object = number;
 
 export enum Components {
   OBJECT = 0,
@@ -14,16 +13,21 @@ export enum Components {
 }
 
 export interface ComponentTable {
+  // Table length
   length: number;
+  // Bitflag for the component table. It is a key that quickly lets us
+  // put an entity into a table.
   archeTypeId: number;
+  // Offset map from component to column.
   componentOffset: Map<Components, number>;
+  // The data
   columns: (ComponentArrays)[]
 }
 
-
-export interface DrawState {
+/** State for keeping track of component creation */
+interface ComponentsState {
   // 64-bit increasing id counter.
-  nextId: Object;
+  nextId: Entity;
   // Bit offset
   nextComponentSlot: number;
   // Cache mapping a component name to its slot.
@@ -33,15 +37,8 @@ export interface DrawState {
   componentTables: Array<ComponentTable>;
 }
 
-export interface Drawable {
-  entity: number;
-  properties: Array<number>;
-  isDirty: boolean;
 
-  hot: number;
-}
-
-const drawState: DrawState = {
+const componentsState: ComponentsState = {
   nextId: 0,
   nextComponentSlot: 0,
   componentIds: new Map(),
@@ -49,20 +46,22 @@ const drawState: DrawState = {
 };
 
 function getNextId() {
-  const nextId = drawState.nextId++;
+  const nextId = componentsState.nextId++;
 
   return nextId;
 }
 
 function getNextComponentId() {
-  if (drawState.nextComponentSlot >= 63) {
+  if (componentsState.nextComponentSlot >= 63) {
     throw new DOMException("Too many components allocated");
   }
-  const componentSlot = drawState.nextComponentSlot++;
+  const componentSlot = componentsState.nextComponentSlot++;
   const componentId = 1 << componentSlot;
 
   return componentId;
 }
+
+/** FUNCTIONS FOR CREATING AND UPDATING COMPONENTS */
 
 // TODO(k): This also crates a new componentID if the component was not
 // found. This is useful for when creating an arctype with a new component
@@ -71,11 +70,11 @@ function getArcheTypeId(components: Components[]) {
   let archeType = 0;
   for (let i = 0; i < components.length; i++) {
     const component = components[i];
-    let componentId = drawState.componentIds.get(component);
+    let componentId = componentsState.componentIds.get(component);
 
     if (componentId === undefined) {
       componentId = getNextComponentId();
-      drawState.componentIds.set(component, componentId);
+      componentsState.componentIds.set(component, componentId);
     }
     archeType |= componentId;
   }
@@ -86,8 +85,8 @@ function addComponents(
   object: number, components: Components[]
 ): [number, ComponentTable] {
   const archetypeId = getArcheTypeId(components);
-  for (let i = 0; i < drawState.componentTables.length; i++) {
-    const archeType = drawState.componentTables[i];
+  for (let i = 0; i < componentsState.componentTables.length; i++) {
+    const archeType = componentsState.componentTables[i];
     if (archeType.archeTypeId === archetypeId) {
       archeType.columns[0].push(object);
       return [archetypeId, archeType];
@@ -115,7 +114,7 @@ function addComponents(
     columns: columns
   };
 
-  drawState.componentTables.push(componentTable);
+  componentsState.componentTables.push(componentTable);
 
   return [archetypeId, componentTable];
 }
@@ -126,8 +125,19 @@ export function getComponent(archeType: ComponentTable, component: Components) {
   return archeType.columns[componentIdx];
 }
 
-export function newPoint(x: number, y: number, r: number): Object {
-  const objectId: Object = getNextId();
+export function queryObjects(components: Components[]): ComponentTable | null {
+  const archeTypeId = getArcheTypeId(components);
+  for (let i = 0; i < componentsState.componentTables.length; i++) {
+    const archType = componentsState.componentTables[i];
+    if (archType.archeTypeId == archeTypeId) {
+      return archType;
+    }
+  }
+  return null;
+}
+
+export function newPoint(x: number, y: number, r: number): Entity {
+  const objectId: Entity = getNextId();
   const pointComponent = Components.POINT;
   const animationComp = Components.ANIMATION;
   const [, archeType] = addComponents(objectId, [pointComponent, animationComp]);
@@ -139,27 +149,3 @@ export function newPoint(x: number, y: number, r: number): Object {
 
   return objectId;
 }
-
-export function queryObjects(components: Components[]): ComponentTable | null {
-  const archeTypeId = getArcheTypeId(components);
-  for (let i = 0; i < drawState.componentTables.length; i++) {
-    const archType = drawState.componentTables[i];
-    if (archType.archeTypeId == archeTypeId) {
-      return archType;
-    }
-  }
-  return null;
-}
-
-
-/** Want to draw a straight line, from the click until the current mouse
- * position. When dragging stops, we stop the line and save the object.
- * 
- * Operations we wish to perform on a line.
- *  - Move end points
- *  - Increate thickness
- * 
- * This also entails:
- * - Hit testing
- * - An entity system for shapes (points, lines, ...more?)
- */

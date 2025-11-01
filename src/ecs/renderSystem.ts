@@ -1,8 +1,7 @@
-import { Components, getComponent, newPoint, queryObjects, type Drawable } from "./ecs";
+import { Components, getComponent, newPoint, queryObjects } from "./components";
 
 interface RenderState {
-  ctx: CanvasRenderingContext2D;
-  drawables: Array<Drawable>;
+  ctx: CanvasRenderingContext2D;  
   isDirty: boolean;
 
   currentTime: number;
@@ -11,11 +10,11 @@ interface RenderState {
 function newRenderState(ctx: CanvasRenderingContext2D): RenderState {
   return {
     ctx,
-    drawables: [],
     isDirty: false,
     currentTime: 0,
   }
 }
+
 
 let renderState: RenderState | null = null;
 
@@ -46,15 +45,6 @@ function setupInputHandlers(canvas: HTMLCanvasElement) {
   canvas.onmouseup;
 }
 
-function draw(drawable: Drawable) {
-}
-
-function doLoopBody(time: number) {
-  for (let i = 0; i < renderState!.drawables.length; i++) {
-    const drawable = renderState!.drawables[i];
-    draw(drawable);
-  }
-}
 
 const radius = 10;
 const endRadius = 30;
@@ -90,7 +80,6 @@ function renderPointsSystem(time: number) {
       pointComp[i * 3 + 2] = nextRadius;      
     } else {
       nextRadius = radius;
-      // renderState!.isDirty = false;
     }    
 
     // TODO(k): Here we render all points? Do we always want that?
