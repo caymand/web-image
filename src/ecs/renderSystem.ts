@@ -1,5 +1,6 @@
 import { Components, getComponent, queryEntities } from "./components";
 import { newPoint } from "../annotations";
+import { linearAnimation } from "./animationSystem";
 
 interface RenderState {
   ctx: CanvasRenderingContext2D;
@@ -33,11 +34,6 @@ export function clearRenderState() {
   renderState = null;
 }
 
-const radius = 10;
-const endRadius = 30;
-const animationDuration = 1_000;
-const growFactor = (endRadius - radius) / animationDuration;
-
 function renderPointsSystem(time: number) {
   const animationPoints = Components.POINT | Components.ANIMATION;
   const pointsComponent = queryEntities(animationPoints);
@@ -45,44 +41,32 @@ function renderPointsSystem(time: number) {
     return;
   }
 
-  if (renderState!.currentTime === 0) {
-    renderState!.currentTime = time;
-  }
-
   const pointComp = getComponent(pointsComponent, Components.POINT);
   const animationComp = getComponent(pointsComponent, Components.ANIMATION);
   for (let i = 0; i < pointsComponent.entities.length; i++) {
     const x = pointComp[i * 3];
     const y = pointComp[i * 3 + 1];
-    const radius = pointComp[i * 3 + 2];
-    const animationProgress = animationComp[i] * animationDuration;
+    const finalRadius = pointComp[i * 3 + 2];
+    const animationProgress = animationComp[i].value;
 
-    let nextRadius: number;
-
-    if (animationProgress > 0) {
-      const dt = time - renderState!.currentTime;
-      nextRadius = dt * growFactor + radius;
-      const remainingAnimation = Math.max(0, animationProgress - dt);
-      animationComp[i] = remainingAnimation / animationDuration;
-      pointComp[i * 3 + 2] = nextRadius;
-    } else {
-      nextRadius = radius;
-    }
+    const radius = finalRadius * animationProgress;
 
     // TODO(k): Here we render all points? Do we always want that?
-    const ctx = renderState!.ctx;
-    ctx.fillStyle = "#ff00ff";
-    ctx.beginPath()
-    ctx.arc(x, y, nextRadius, 0, 2 * Math.PI, true);
-    ctx.fill();
+    if (radius !== finalRadius) {
+      const ctx = renderState!.ctx;
+      ctx.fillStyle = "#ff00ff";
+      ctx.beginPath()
+      ctx.arc(x, y, radius, 0, 2 * Math.PI, true);
+      ctx.fill();
+    }
   }
-  renderState!.currentTime = time;
 }
 
 function loop(time: number) {
-  if (renderState!.isDirty) {
-    renderPointsSystem(time);
-  }
+  linearAnimation(time);
+  renderPointsSystem(time);
+
+  renderState!.currentTime = time;
   requestAnimationFrame(loop);
 }
 
@@ -90,7 +74,7 @@ function loop(time: number) {
 // TODO(k): move this out of the render system.
 // They should probably go into the inputSystem.
 function mouseDown(ev: MouseEvent) {
-  newPoint(ev.x, ev.y, radius);
+  newPoint(0, ev.x, ev.y, 10);
   renderState!.isDirty = true;
 }
 

@@ -1,8 +1,14 @@
 import { firstSet, stripBits } from "../BitSet";
 
+export interface Animation {
+  start: number;
+  duration: number;
+  value: number;
+}
+
 type PositionArray = Array<number>;
 type EntityArray = Array<number>;
-type LinearAnimationArray = Array<number>;
+type LinearAnimationArray = Array<Animation>;
 type RenderableArray = Array<boolean>;
 
 type ComponentArrays = PositionArray | LinearAnimationArray | RenderableArray;
@@ -112,9 +118,27 @@ export function getComponent<T extends Components>(
   return archeType.columns[componentIdx] as ComponentMap[T];
 }
 
+export function queryComponent<T extends Components>(
+  componentType: T
+): Array<ComponentMap[T]> {
+  const matchingComponents: ComponentMap[T][] = [];
+
+  for (let i = 0; i < componentsState.componentTables.length; i++) {
+    const archeType = componentsState.componentTables[i];    
+    if (archeType.archeTypeId & componentType) {            
+      const component = getComponent<T>(archeType, componentType)
+      matchingComponents.push(component);
+    }
+  }
+  return matchingComponents;
+
+}
+
 export function queryEntities(components: Components): ComponentTable | null {
   for (let i = 0; i < componentsState.componentTables.length; i++) {
     const archType = componentsState.componentTables[i];
+
+    // TODO(k): We should also consider the case where only a subset matches.
     if (archType.archeTypeId == components) {
       return archType;
     }
