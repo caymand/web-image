@@ -1,16 +1,18 @@
-import { type Entity } from "./entity";
+import { firstSet, stripBits } from "../BitSet";
 
 type PositionArray = Array<number>;
-type ObjectArray = Array<number>;
-type AnimationArray = Array<number>;
+type EntityArray = Array<number>;
+type LinearAnimationArray = Array<number>;
+type RenderableArray = Array<boolean>;
 
-type ComponentArrays = ObjectArray | PositionArray | AnimationArray;
+type ComponentArrays = PositionArray | LinearAnimationArray ;
 
 export enum Components {
-  OBJECT = 0,
-  POINT,
-  ANIMATION,
+  POINT = 1 << 0,
+  ANIMATION = POINT << 1,
+  RENDERABLE = ANIMATION << 1,
 }
+
 
 export interface ComponentTable {
   // Table length
@@ -20,14 +22,13 @@ export interface ComponentTable {
   archeTypeId: number;
   // Offset map from component to column.
   componentOffset: Map<Components, number>;
+  entities: EntityArray;
   // The data
   columns: (ComponentArrays)[]
 }
 
 /** State for keeping track of component creation */
 interface ComponentsState {
-  // 64-bit increasing id counter.
-  nextId: Entity;
   // Bit offset
   nextComponentSlot: number;
   // Cache mapping a component name to its slot.
@@ -39,70 +40,79 @@ interface ComponentsState {
 
 
 const componentsState: ComponentsState = {
-  nextId: 0,
   nextComponentSlot: 0,
   componentIds: new Map(),
   componentTables: []
 };
 
-function getNextId() {
-  const nextId = componentsState.nextId++;
+// function getNextComponentId() {
+//   if (componentsState.nextComponentSlot >= 63) {
+//     throw new DOMException("Too many components allocated");
+//   }
+//   const componentSlot = componentsState.nextComponentSlot++;
+//   const componentId = 1 << componentSlot;
 
-  return nextId;
-}
-
-function getNextComponentId() {
-  if (componentsState.nextComponentSlot >= 63) {
-    throw new DOMException("Too many components allocated");
-  }
-  const componentSlot = componentsState.nextComponentSlot++;
-  const componentId = 1 << componentSlot;
-
-  return componentId;
-}
+//   return componentId;
+// }
 
 /** FUNCTIONS FOR CREATING AND UPDATING COMPONENTS */
 
 // TODO(k): This also crates a new componentID if the component was not
 // found. This is useful for when creating an arctype with a new component
 // but it also means querying for an invalid component creates an ID.
-function getArcheTypeId(components: Components[]) {
-  let archeType = 0;
-  for (let i = 0; i < components.length; i++) {
-    const component = components[i];
-    let componentId = componentsState.componentIds.get(component);
+// function registerComponentTable(components: Components) {
 
-    if (componentId === undefined) {
-      componentId = getNextComponentId();
-      componentsState.componentIds.set(component, componentId);
-    }
-    archeType |= componentId;
+//   let archeType = 0;
+//   for (let i = 0; i < components.length; i++) {
+//     const component = components[i];
+//     let componentId = componentsState.componentIds.get(component);
+
+//     if (componentId === undefined) {
+//       componentId = getNextComponentId();
+//       componentsState.componentIds.set(component, componentId);
+//     }
+//     archeType |= componentId;
+//   }
+//   return archeType;
+// }
+
+export function getIndividualComponents(components: Components): Array<Components> {
+  let idx = firstSet(components);
+  const individualComponents: Array<number> = []
+
+  while (idx >= 0) {
+    const component = 1 << idx;
+    individualComponents.push(component);
+    const remaining = stripBits(idx, components);
+    idx = firstSet(remaining);
   }
-  return archeType;
+
+  return individualComponents;
 }
 
-function addComponents(
-  object: number, components: Components[]
+export function addComponents(
+  entity: number, components: Components
 ): [number, ComponentTable] {
-  const archetypeId = getArcheTypeId(components);
   for (let i = 0; i < componentsState.componentTables.length; i++) {
     const archeType = componentsState.componentTables[i];
-    if (archeType.archeTypeId === archetypeId) {
-      archeType.columns[0].push(object);
-      return [archetypeId, archeType];
+    if (archeType.archeTypeId === components) {
+      archeType.entities.push(entity);
+      return [components, archeType];
     }
   }
 
   // If the archeType has not yet been created, we need to create it
-  const objArry: ObjectArray = [object]
+  const entities: EntityArray = [entity]
   let offsetTable = new Map<Components, number>();
-  // Store objectIds + all components
-  let columns = new Array<ComponentArrays>(components.length + 1);
-  columns[0] = objArry;
+  const componentsArray = getIndividualComponents(components);
 
-  for (let i = 0; i < components.length; i++) {
-    const component = components[i];
-    const offset = i + 1;
+  // Store objectIds + all components
+  let columns = new Array<ComponentArrays>(componentsArray.length);
+  columns[0] = entities;
+
+  for (let i = 0; i < componentsArray.length; i++) {
+    const component = componentsArray[i];
+    const offset = i;
     offsetTable.set(component, offset);
     columns[offset] = new Array();
   }
@@ -110,13 +120,14 @@ function addComponents(
   const componentTable: ComponentTable = {
     length: 1,
     componentOffset: offsetTable,
-    archeTypeId: archetypeId,
+    entities: entities,
+    archeTypeId: components,
     columns: columns
   };
 
   componentsState.componentTables.push(componentTable);
 
-  return [archetypeId, componentTable];
+  return [components, componentTable];
 }
 
 export function getComponent(archeType: ComponentTable, component: Components) {
@@ -125,27 +136,12 @@ export function getComponent(archeType: ComponentTable, component: Components) {
   return archeType.columns[componentIdx];
 }
 
-export function queryObjects(components: Components[]): ComponentTable | null {
-  const archeTypeId = getArcheTypeId(components);
+export function queryObjects(components: Components): ComponentTable | null {
   for (let i = 0; i < componentsState.componentTables.length; i++) {
     const archType = componentsState.componentTables[i];
-    if (archType.archeTypeId == archeTypeId) {
+    if (archType.archeTypeId == components) {
       return archType;
     }
   }
   return null;
-}
-
-export function newPoint(x: number, y: number, r: number): Entity {
-  const objectId: Entity = getNextId();
-  const pointComponent = Components.POINT;
-  const animationComp = Components.ANIMATION;
-  const [, archeType] = addComponents(objectId, [pointComponent, animationComp]);
-
-  const pointComponentIdx = archeType.componentOffset.get(pointComponent)!;
-  const animationCompIdx = archeType.componentOffset.get(animationComp)!;
-  archeType.columns[pointComponentIdx].push(x, y, r);
-  archeType.columns[animationCompIdx].push(1.0);
-
-  return objectId;
 }

@@ -1,7 +1,8 @@
-import { Components, getComponent, newPoint, queryObjects } from "./components";
+import { Components, getComponent, queryObjects } from "./components";
+import { newPoint } from "../annotations";
 
 interface RenderState {
-  ctx: CanvasRenderingContext2D;  
+  ctx: CanvasRenderingContext2D;
   isDirty: boolean;
 
   currentTime: number;
@@ -32,29 +33,15 @@ export function clearRenderState() {
   renderState = null;
 }
 
-function mouseDown(ev: MouseEvent) {
-  newPoint(ev.x, ev.y, radius);
-  renderState!.isDirty = true;
-}
-
-function setupInputHandlers(canvas: HTMLCanvasElement) {
-  // TODO(k): Handlers for these events should be all we need for 
-  // drawing.
-  canvas.onmousemove;
-  canvas.onmousedown = mouseDown
-  canvas.onmouseup;
-}
-
-
 const radius = 10;
 const endRadius = 30;
 const animationDuration = 1_000;
 const growFactor = (endRadius - radius) / animationDuration;
 
 function renderPointsSystem(time: number) {
-  const animationPoints = [Components.POINT, Components.ANIMATION];
-  const points = queryObjects(animationPoints);
-  if (points === null) {
+  const animationPoints = Components.POINT | Components.ANIMATION;
+  const pointsComponent = queryObjects(animationPoints);
+  if (pointsComponent === null) {
     return;
   }
 
@@ -62,9 +49,9 @@ function renderPointsSystem(time: number) {
     renderState!.currentTime = time;
   }
 
-  const pointComp = getComponent(points, Components.POINT);
-  const animationComp = getComponent(points, Components.ANIMATION);
-  for (let i = 0; i < points.columns[Components.OBJECT].length; i++) {
+  const pointComp = getComponent(pointsComponent, Components.POINT);
+  const animationComp = getComponent(pointsComponent, Components.ANIMATION);
+  for (let i = 0; i < pointsComponent.entities.length; i++) {
     const x = pointComp[i * 3];
     const y = pointComp[i * 3 + 1];
     const radius = pointComp[i * 3 + 2];
@@ -75,12 +62,12 @@ function renderPointsSystem(time: number) {
     if (animationProgress > 0) {
       const dt = time - renderState!.currentTime;
       nextRadius = dt * growFactor + radius;
-      const remainingAnimation = Math.max(0, animationProgress - dt);      
-      animationComp[i] = remainingAnimation / animationDuration;    
-      pointComp[i * 3 + 2] = nextRadius;      
+      const remainingAnimation = Math.max(0, animationProgress - dt);
+      animationComp[i] = remainingAnimation / animationDuration;
+      pointComp[i * 3 + 2] = nextRadius;
     } else {
       nextRadius = radius;
-    }    
+    }
 
     // TODO(k): Here we render all points? Do we always want that?
     const ctx = renderState!.ctx;
@@ -97,6 +84,22 @@ function loop(time: number) {
     renderPointsSystem(time);
   }
   requestAnimationFrame(loop);
+}
+
+
+// TODO(k): move this out of the render system.
+// They should probably go into the inputSystem.
+function mouseDown(ev: MouseEvent) {
+  newPoint(ev.x, ev.y, radius);
+  renderState!.isDirty = true;
+}
+
+function setupInputHandlers(canvas: HTMLCanvasElement) {
+  // TODO(k): Handlers for these events should be all we need for 
+  // drawing.
+  canvas.onmousemove;
+  canvas.onmousedown = mouseDown
+  canvas.onmouseup;
 }
 
 export { loop as renderLoop };
