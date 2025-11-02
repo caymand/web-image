@@ -1,5 +1,5 @@
 import { Components, getComponent, queryEntities } from "./components";
-import { newPoint } from "../annotations";
+
 import { linearAnimation } from "./animationSystem";
 
 interface RenderState {
@@ -23,8 +23,7 @@ let renderState: RenderState | null = null;
 export function initRenderState(canvas: HTMLCanvasElement) {
   if (renderState === null) {
     const ctx = canvas.getContext("2d")!;
-    renderState = newRenderState(ctx);
-    setupInputHandlers(canvas);
+    renderState = newRenderState(ctx);    
     return;
   }
   throw new DOMException("Cannot init renderer more than once.");
@@ -68,22 +67,6 @@ function loop(time: number) {
 
   renderState!.currentTime = time;
   requestAnimationFrame(loop);
-}
-
-
-// TODO(k): move this out of the render system.
-// They should probably go into the inputSystem.
-function mouseDown(ev: MouseEvent) {
-  newPoint(0, ev.x, ev.y, 10);
-  renderState!.isDirty = true;
-}
-
-function setupInputHandlers(canvas: HTMLCanvasElement) {
-  // TODO(k): Handlers for these events should be all we need for 
-  // drawing.
-  canvas.onmousemove;
-  canvas.onmousedown = mouseDown
-  canvas.onmouseup;
 }
 
 export { loop as renderLoop };

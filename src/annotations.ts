@@ -7,10 +7,14 @@ export function newPoint(currentTime: number, x: number, y: number, r: number): 
     entity, Components.POINT | Components.ANIMATION
   );
 
-  const positions = getComponent<Components.POINT>(archeType, Components.POINT);
-  const animations = getComponent<Components.ANIMATION>(archeType, Components.ANIMATION);
+  const positions = getComponent(archeType, Components.POINT);
+  const animations = getComponent(archeType, Components.ANIMATION);
   positions.push(x, y, r);
   animations.push({duration: 100, start: currentTime, value: 0});
 
   return entity;
+}
+
+export function lineSegment() {
+  
 }
