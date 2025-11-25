@@ -1,4 +1,4 @@
-import { Components, getComponent, queryEntities } from "./components";
+import { Components, GetComponent, GetEntitiesWithComponent } from "./EntityManager";
 
 import { linearAnimation } from "./animationSystem";
 
@@ -23,7 +23,7 @@ let renderState: RenderState | null = null;
 export function initRenderState(canvas: HTMLCanvasElement) {
   if (renderState === null) {
     const ctx = canvas.getContext("2d")!;
-    renderState = newRenderState(ctx);    
+    renderState = newRenderState(ctx);
     return;
   }
   throw new DOMException("Cannot init renderer more than once.");
@@ -34,30 +34,29 @@ export function clearRenderState() {
 }
 
 function renderPointsSystem(time: number) {
-  const animationPoints = Components.POINT | Components.ANIMATION;
-  const pointsComponent = queryEntities(animationPoints);
-  if (pointsComponent === null) {
-    return;
-  }
+  const animationPoints = Components.POINT | Components.ANIMATION | Components.SIZE;
 
-  const pointComp = getComponent(pointsComponent, Components.POINT);
-  const animationComp = getComponent(pointsComponent, Components.ANIMATION);
-  for (let i = 0; i < pointsComponent.entities.length; i++) {
-    const x = pointComp[i * 3];
-    const y = pointComp[i * 3 + 1];
-    const finalRadius = pointComp[i * 3 + 2];
-    const animationProgress = animationComp[i].value;
+  const entities = GetEntitiesWithComponent(animationPoints);
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
 
+    const point = GetComponent(entity, Components.POINT);
+    const finalRadius = GetComponent(entity, Components.SIZE);
+    const animation = GetComponent(entity, Components.ANIMATION);
+
+    const animationProgress = animation.value;
     const radius = finalRadius * animationProgress;
 
+    const centerX = point.x - finalRadius;
+    const centerY = point.y - finalRadius;
+
     // TODO(k): Here we render all points? Do we always want that?
-    if (radius !== finalRadius) {
-      const ctx = renderState!.ctx;
-      ctx.fillStyle = "#ff00ff";
-      ctx.beginPath()
-      ctx.arc(x, y, radius, 0, 2 * Math.PI, true);
-      ctx.fill();
-    }
+    const ctx = renderState!.ctx;
+    ctx.fillStyle = "#ff00ff";
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, Math.min(radius, finalRadius), 0, 2 * Math.PI, true);
+    ctx.fill();
+  
   }
 }
 
