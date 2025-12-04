@@ -1,4 +1,6 @@
 import { firstSet, stripBits } from "../BitSet";
+import type { ComponentTypeMap } from "./Components";
+import { Components } from "./Components";
 import type { Entity } from "./Entity";
 
 export interface EntitySystem {
@@ -16,36 +18,6 @@ const entitySystem: EntitySystem = {
   EntitiesWithComponent: new Map(),
 }
 
-export enum Components {
-  NONE = 0,
-  POINT = 1 << 0,
-  ANIMATION = 1 << 1,
-  RENDERABLE = 1 << 2,
-  SIZE = 1 << 3,
-}
-
-export interface LinearAnimation {
-  start: number;
-  duration: number;
-  value: number;
-}
-
-export type Size = number;
-
-export interface Position {
-  x: number;
-  y: number;
-}
-type Renderable = boolean;
-
-
-type ComponentTypeMap = {
-  [Components.NONE]: never
-  [Components.POINT]: Position;
-  [Components.ANIMATION]: LinearAnimation;
-  [Components.RENDERABLE]: Renderable;
-  [Components.SIZE]: Size;
-};
 
 export function getIndividualComponents(components: Components): Array<Components> {
   let idx = firstSet(components);
@@ -136,6 +108,7 @@ export function SetComponent<T extends Components>(
     const componentTable = entitySystem.ComponentTables.get(componentType);
     if (componentTable !== undefined) {
       componentTable[componentIdx] = value;
+      return;
     }
   }
   throw new DOMException("Component not registed for entity");
@@ -153,3 +126,24 @@ export function GetEntitiesWithComponent<T extends Components>(
 ): Array<Entity> {
   return entitySystem.EntitiesWithComponent.get(archeType) ?? [];
 }
+
+// export function GetEntitiesWithComponents<T extends Components>(
+//   archeType: T
+// ) {
+//   const componentTypes = getIndividualComponents(archeType);
+//   const : Map<Components, Entity[]> = new Map();
+
+//   for (const componentType of componentTypes) {
+//     const entities = GetEntitiesWithComponent(componentType);
+//     for (let i = 0; i < entities.length; i++) {
+//       const entity = entities[i];
+//       const registeredComponents = archeTypes.get(entity);
+//       if (registeredComponents === undefined) {
+//         archeTypes.set(entity, componentType);
+//       }
+//       else {
+//         archeTypes.set(entity, registeredComponents|componentType);
+//       }
+//     }
+//   }  
+// }

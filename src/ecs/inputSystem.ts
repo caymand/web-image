@@ -1,34 +1,37 @@
-import { newPoint } from "../annotations";
-
-interface InputSystemState {
-  mouseDown: boolean;
-}
-const inputSystemState: InputSystemState = {
-  mouseDown: false,
-}
+import { lineSegment } from "./annotationsSystem";
+import { Components } from "./Components";
+import { newEntity } from "./Entity";
+import { AddComponent, GetAllComponentsOfType } from "./EntityManager";
 
 export function initInputSystem(canvas: HTMLCanvasElement) {
   canvas.onmousemove = mouseMove;
   canvas.onmousedown = mouseDown
   canvas.onmouseup = mouseUp;
+
+  const inputEntity = newEntity();
+  AddComponent(inputEntity, Components.INPUT_CONTEXT, { x: 0, y: 0, pointerDown: false });
 }
 
 export function deleteInputSystem() {
-  // TODO: Should we delete the input handlers?
+  // TODO(k): Requires deleting the entity 
 }
 
 function mouseMove(ev: MouseEvent) {
-  if (!inputSystemState.mouseDown) {
-    return;
-  }
+  const ctx = GetAllComponentsOfType(Components.INPUT_CONTEXT)[0];
+  ctx.x = ev.x;
+  ctx.y = ev.y;
 }
 
-function mouseUp(ev: MouseEvent) {
-  newPoint(0, ev.x, ev.y, 10);
-  inputSystemState.mouseDown = true;
+function pointerClicked(pointerDown: boolean) {
+  const ctx = GetAllComponentsOfType(Components.INPUT_CONTEXT)[0];
+  ctx.pointerDown = pointerDown;
+}
+
+function mouseUp(_ev: MouseEvent) {
+  pointerClicked(false);
 }
 
 function mouseDown(ev: MouseEvent) {
-  newPoint(0, ev.x, ev.y, 10);
-  inputSystemState.mouseDown = true;
+  pointerClicked(true);
+  lineSegment({x: ev.x, y: ev.y});
 }

@@ -1,4 +1,5 @@
-import { Components, GetAllComponentsOfType } from "./EntityManager";
+import { GetAllComponentsOfType } from "./EntityManager";
+import { Components } from "./Components";
 
 export function linearAnimation(currentTime: number) {
   const animations = GetAllComponentsOfType(Components.ANIMATION);

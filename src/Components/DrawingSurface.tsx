@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { worker, type CanvasMsg, type ResizeMsg } from "../workerMsg";
 import style from "./controls.module.css"
-import { clearRenderState, renderLoop } from "../ecs/renderSystem";
+import { clearRenderState, renderLoop, windowWasResized } from "../ecs/renderSystem";
 import { initSystems } from "../ecs/systems";
 
 export const DrawingSurface: React.FC = () => {
@@ -20,6 +20,7 @@ export const DrawingSurface: React.FC = () => {
       if (drawingCanvasRef.current !== null) {
         drawingCanvasRef.current.width = rect.width;
         drawingCanvasRef.current.height = rect.height;
+        windowWasResized(rect.width, rect.height);
       }
       renderLoop(0);
     }

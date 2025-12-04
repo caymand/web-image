@@ -1,4 +1,4 @@
-import { Components } from "./EntityManager";
+import { Components } from "./Components";
 
 let nextId = 0;
 
