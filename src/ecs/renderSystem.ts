@@ -5,7 +5,6 @@ import { Components, type Vec2 } from "./Components";
 
 
 import { linearAnimation } from "./animationSystem";
-import { updateLine } from "./annotationsSystem";
 
 interface RenderState {
   ctx: CanvasRenderingContext2D;
@@ -44,7 +43,7 @@ export function clearRenderState() {
   renderState = null;
 }
 
-function renderPointsSystem(time: number) {
+function renderPointsSystem(_time: number) {
   const animationPoints = Components.POINT | Components.ANIMATION | Components.SIZE;
 
   const entities = GetEntitiesWithComponent(animationPoints);
@@ -71,13 +70,12 @@ function renderPointsSystem(time: number) {
   }
 }
 
-function lineRendering(time: number) {
+function lineRendering(_time: number) {
   const lines = GetEntitiesWithComponent(Components.LINE_SEGMENT | Components.SIZE | Components.SELECTABLE);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineSegment = GetComponent(line, Components.LINE_SEGMENT);
     const thickness = GetComponent(line, Components.SIZE);
-    const selected = GetComponent(line, Components.SELECTABLE);
     const { p1, p2 } = lineSegment;
 
     const canvasCtx = renderState!.ctx;
@@ -94,14 +92,13 @@ function loop(time: number) {
   const ctx = renderState!.ctx;
   const dims = renderState!.dims;
   ctx.clearRect(0, 0, dims.x, dims.y);
-  updateLine();
+  // TODO(k): Should all systems just run here?
 
   linearAnimation(time);
   // renderPointsSystem(time);
   lineRendering(time);
 
   renderState!.currentTime = time;
-  requestAnimationFrame(loop);
 }
 
 export { loop as renderLoop };

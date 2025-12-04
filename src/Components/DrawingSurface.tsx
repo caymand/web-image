@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { worker, type CanvasMsg, type ResizeMsg } from "../workerMsg";
 import style from "./controls.module.css"
-import { clearRenderState, renderLoop, windowWasResized } from "../ecs/renderSystem";
-import { initSystems } from "../ecs/systems";
+import { clearRenderState, windowWasResized } from "../ecs/renderSystem";
+import { initSystems, startAllSystems } from "../ecs/systems";
 
 export const DrawingSurface: React.FC = () => {
   const videoCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,7 +22,7 @@ export const DrawingSurface: React.FC = () => {
         drawingCanvasRef.current.height = rect.height;
         windowWasResized(rect.width, rect.height);
       }
-      renderLoop(0);
+      startAllSystems(0);
     }
   }, [])
 
